@@ -58,7 +58,7 @@ const App: React.FC = () => {
       <div className="w-full max-w-4xl mx-auto">
         <header className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
-            Gemini OCR
+            Agentic OCR
           </h1>
           <p className="text-gray-400 mt-2 text-lg">
             Instantly extract text from your images with the power of AI.
@@ -120,7 +120,7 @@ const App: React.FC = () => {
         </main>
 
         <footer className="text-center mt-8 text-gray-500 text-sm">
-          <p>Powered by Google Gemini</p>
+          <p>Demo by Metrized</p>
         </footer>
       </div>
     </div>
