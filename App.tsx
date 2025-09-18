@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { extractTextFromImage } from './services/geminiService';
 import { ImageUploader } from './components/ImageUploader';
 import { ResultDisplay } from './components/ResultDisplay';
-import { Spinner } from './components/Spinner';
+import { ScanningAnimation } from './components/ScanningAnimation';
 
 const App: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -72,16 +72,16 @@ const App: React.FC = () => {
 
           {imageUrl && (
             <div className="flex flex-col items-center">
-              <div className="w-full max-w-lg mb-6 border-4 border-gray-700 rounded-xl overflow-hidden shadow-lg">
+              <div className="w-full max-w-lg mb-6 border-4 border-gray-700 rounded-xl overflow-hidden shadow-lg relative">
                 <img src={imageUrl} alt="Selected preview" className="w-full h-auto object-contain" />
+                <ScanningAnimation isVisible={isLoading} />
               </div>
               
               <div className="w-full">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center text-center">
-                    <Spinner />
-                    <p className="mt-4 text-teal-400 font-semibold text-lg">Analyzing image...</p>
-                    <p className="text-gray-400">This may take a moment.</p>
+                    <p className="text-teal-400 font-semibold text-lg">Scanning image for text...</p>
+                    <p className="text-gray-400">AI is analyzing your image</p>
                   </div>
                 ) : (
                   <>
