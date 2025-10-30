@@ -131,7 +131,7 @@ if [ ! -f "$WRAPPER_JAR" ]; then
         die "ERROR: Unable to parse Gradle version from distributionUrl: $distributionUrl"
     fi
 
-    jarUrl="https://services.gradle.org/distributions/gradle-${gradleVersion}-wrapper.jar"
+    jarUrl="https://services.gradle.org/distributions/gradle-wrapper-${gradleVersion}.jar"
     warn "Downloading Gradle wrapper JAR from $jarUrl"
 
     if command -v curl >/dev/null 2>&1; then
