@@ -30,13 +30,15 @@ class MainViewModel(
         val isProcessing: Boolean = false,
         val results: List<OcrResult> = emptyList(),
         val bulkMode: Boolean = false,
-        val lastSavedPath: String? = null
+        val lastSavedPath: String? = null,
+        val combinedText: String = ""
     )
 
     private val mutableResults = MutableStateFlow<List<OcrResult>>(emptyList())
     private val mutableProcessing = MutableStateFlow(false)
     private val mutableBulkMode = MutableStateFlow(false)
     private val mutableLastSavedPath = MutableStateFlow<String?>(null)
+    private val mutableCombinedText = MutableStateFlow("")
 
     val notifications = MutableSharedFlow<String?>(replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
@@ -47,7 +49,8 @@ class MainViewModel(
         mutableProcessing,
         mutableResults,
         mutableBulkMode,
-        mutableLastSavedPath
+        mutableLastSavedPath,
+        mutableCombinedText
     ) { values ->
         val apiKey = values[0] as String
         val model = values[1] as String
@@ -55,6 +58,7 @@ class MainViewModel(
         val results = values[3] as List<OcrResult>
         val bulk = values[4] as Boolean
         val saved = values[5] as String?
+        val combined = values[6] as String
 
         UiState(
             apiKey = apiKey,
@@ -62,7 +66,8 @@ class MainViewModel(
             isProcessing = processing,
             results = results,
             bulkMode = bulk,
-            lastSavedPath = saved
+            lastSavedPath = saved,
+            combinedText = combined
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
@@ -89,6 +94,7 @@ class MainViewModel(
     fun processSingle(contentResolver: ContentResolver, uri: Uri) {
         viewModelScope.launch {
             mutableProcessing.value = true
+            mutableCombinedText.value = ""
             val start = System.currentTimeMillis()
             val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
             result.fold(
@@ -97,6 +103,7 @@ class MainViewModel(
                     mutableResults.value = listOf(
                         OcrResult(uri.toString(), text, duration)
                     )
+                    mutableCombinedText.value = text
                 },
                 onFailure = { ex ->
                     notifyError(ex)
@@ -110,14 +117,24 @@ class MainViewModel(
         if (uris.isEmpty()) return
         viewModelScope.launch {
             mutableProcessing.value = true
+            mutableCombinedText.value = ""
             val newResults = mutableListOf<OcrResult>()
+            val combinedBuilder = StringBuilder()
+            val apiKey = uiState.value.apiKey
+            val model = uiState.value.model
             for (uri in uris) {
                 val start = System.currentTimeMillis()
-                val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
+                val result = geminiOcrService.extractSpeech(contentResolver, uri, apiKey, model)
                 result.fold(
                     onSuccess = { text ->
                         val duration = System.currentTimeMillis() - start
                         newResults.add(OcrResult(uri.toString(), text, duration))
+                        if (combinedBuilder.isNotEmpty()) {
+                            combinedBuilder.append("\n\n")
+                        }
+                        combinedBuilder.append(text)
+                        mutableResults.value = newResults.toList()
+                        mutableCombinedText.value = combinedBuilder.toString()
                     },
                     onFailure = { ex ->
                         notifyError(ex)
@@ -125,12 +142,14 @@ class MainViewModel(
                 )
             }
             mutableResults.value = newResults
+            mutableCombinedText.value = combinedBuilder.toString()
             mutableProcessing.value = false
         }
     }
 
     fun clearResults() {
         mutableResults.value = emptyList()
+        mutableCombinedText.value = ""
     }
 
     fun setLastSavedPath(path: String?) {
