@@ -140,13 +140,21 @@ private fun ActionRow(
 ) {
     val clipboard = LocalClipboardManager.current
 
-    val combinedText = remember(results) {
-        results.joinToString(separator = "\n\n") { result ->
-            buildString {
-                append("Sumber: ")
-                append(result.imageUri)
-                append('\n')
-                append(result.processedText)
+    val combinedText = remember(results, isBulk) {
+        if (results.isEmpty()) {
+            ""
+        } else if (isBulk) {
+            results.mapIndexed { index, result ->
+                buildString {
+                    append("Panel : ")
+                    append(index + 1)
+                    append('\n')
+                    append(result.processedText.trimEnd())
+                }
+            }.joinToString(separator = "\n\n")
+        } else {
+            results.joinToString(separator = "\n\n") { result ->
+                result.processedText
             }
         }
     }
