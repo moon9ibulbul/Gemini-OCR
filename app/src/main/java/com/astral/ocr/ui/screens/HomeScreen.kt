@@ -124,7 +124,8 @@ fun HomeScreen(
                 onClear = onClear,
                 onSaveResult = onSaveResult,
                 isBulk = uiState.bulkMode,
-                results = uiState.results
+                results = uiState.results,
+                combinedText = uiState.combinedText
             )
             ResultList(results = uiState.results)
         }
@@ -136,17 +137,22 @@ private fun ActionRow(
     onClear: () -> Unit,
     onSaveResult: (String, String) -> Unit,
     isBulk: Boolean,
-    results: List<OcrResult>
+    results: List<OcrResult>,
+    combinedText: String
 ) {
     val clipboard = LocalClipboardManager.current
 
-    val combinedText = remember(results) {
-        results.joinToString(separator = "\n\n") { result ->
-            buildString {
-                append("Sumber: ")
-                append(result.imageUri)
-                append('\n')
-                append(result.processedText)
+    val clipboardText = remember(results, combinedText) {
+        if (combinedText.isNotBlank()) {
+            combinedText
+        } else {
+            results.joinToString(separator = "\n\n") { result ->
+                buildString {
+                    append("Sumber: ")
+                    append(result.imageUri)
+                    append('\n')
+                    append(result.processedText)
+                }
             }
         }
     }
@@ -158,7 +164,7 @@ private fun ActionRow(
     ) {
         AssistChip(
             onClick = {
-                clipboard.setText(AnnotatedString(combinedText))
+                clipboard.setText(AnnotatedString(clipboardText))
             },
             label = { Text("Salin Semua") },
             leadingIcon = {
@@ -175,7 +181,7 @@ private fun ActionRow(
             IconButton(
                 onClick = {
                     val filename = if (isBulk) "astral_bulk_result.txt" else "astral_result.txt"
-                    onSaveResult(filename, combinedText)
+                    onSaveResult(filename, clipboardText)
                 }
             ) {
                 Icon(imageVector = Icons.Default.FileDownload, contentDescription = "Simpan")
