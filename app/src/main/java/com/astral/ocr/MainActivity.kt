@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
                         viewModel = viewModel,
                         pickSingleImage = { mimeTypes, callback ->
                             viewModel.onImagePickedCallback = callback
-                            singleImagePicker.launch(mimeTypes.first())
+                            singleImagePicker.launch(mimeTypes)
                         },
                         pickMultipleImages = { mimeTypes, callback ->
                             viewModel.onMultipleImagesPickedCallback = callback
