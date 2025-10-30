@@ -1,20 +1,29 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AstralOCR
 
-# Run and deploy your AI Studio app
+AstralOCR adalah aplikasi Android berbasis Jetpack Compose untuk melakukan OCR pada manhwa dengan bantuan Google Gemini. Aplikasi ini mampu mengklasifikasikan teks menjadi bubble speech bulat, bubble speech kotak, SFX, dan teks di luar bubble sesuai format khusus yang memudahkan proses typesetting.
 
-This contains everything you need to run your app locally.
+## Fitur utama
 
-View your app in AI Studio: https://ai.studio/apps/drive/12xQW_U3HxMtGGS2ZMTNgUQD-3Ykx3WpZ
+- 🔮 Antarmuka modern dengan tema kosmik dan ikon kustom "A".
+- 🗨️ Deteksi berbagai jenis teks manhwa (bubble bulat `()`, bubble kotak `[]`, SFX `//`, dan teks luar `''`).
+- 🧠 Integrasi dengan Gemini Vision melalui API key dan model yang dapat dikonfigurasi pengguna.
+- 📁 Mode Single dan Bulk OCR untuk memproses satu atau banyak gambar sekaligus.
+- 💾 Simpan hasil ekstraksi dalam format `.txt`, baik per gambar maupun keseluruhan hasil bulk.
+- 🚨 Snackbar notifikasi ketika terjadi kesalahan ataupun limit API.
 
-## Run Locally
+## Menjalankan proyek
 
-**Prerequisites:**  Node.js
+Pastikan Anda menggunakan Android Studio Giraffe (atau lebih baru) serta JDK 17.
 
+1. Buka folder ini di Android Studio.
+2. Sinkronkan Gradle dan jalankan aplikasi pada emulator atau perangkat fisik.
+3. Masukkan API key dan nama model Gemini pada menu **Pengaturan** sebelum melakukan OCR.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Konfigurasi Gemini
+
+- API endpoint yang digunakan: `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
+- Aplikasi membutuhkan akses internet serta izin membaca media gambar.
+
+## Otomasi CI
+
+Repositori ini dilengkapi workflow GitHub Actions untuk memastikan aplikasi dapat dibangun melalui Gradle setiap ada perubahan pada cabang utama.

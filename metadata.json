@@ -1,7 +1,0 @@
-{
-  "name": "Copy of Gemini OCR",
-  "description": "An OCR application that extracts text from an image using the Gemini API. Users can upload an image or use their device's camera.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
