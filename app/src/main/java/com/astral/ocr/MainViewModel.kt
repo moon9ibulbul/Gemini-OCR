@@ -40,6 +40,7 @@ class MainViewModel(
 
     val notifications = MutableSharedFlow<String?>(replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
+    @Suppress("UNCHECKED_CAST")
     val uiState: StateFlow<UiState> = combine(
         settingsRepository.apiKey,
         settingsRepository.model,
@@ -47,7 +48,14 @@ class MainViewModel(
         mutableResults,
         mutableBulkMode,
         mutableLastSavedPath
-    ) { apiKey, model, processing, results, bulk, saved ->
+    ) { values ->
+        val apiKey = values[0] as String
+        val model = values[1] as String
+        val processing = values[2] as Boolean
+        val results = values[3] as List<OcrResult>
+        val bulk = values[4] as Boolean
+        val saved = values[5] as String?
+
         UiState(
             apiKey = apiKey,
             model = if (model.isBlank()) "gemini-1.5-flash-latest" else model,
