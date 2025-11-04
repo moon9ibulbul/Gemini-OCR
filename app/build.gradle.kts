@@ -66,19 +66,6 @@ chaquopy {
     defaultConfig {
         version = "3.13"
         pip {
-            // Disable build isolation so that packages installed in the base
-            // environment (like Meson) are visible when building wheels. This
-            // keeps compatibility with scientific packages which rely on
-            // system tools that may already exist in the environment.
-            options("--no-build-isolation")
-
-            // Install the legacy scikit-build package ahead of the rest of the
-            // requirements so that source distributions which still depend on
-            // the "skbuild" module (like ninja) can import it during their
-            // setup step even though they don't declare it in pyproject.toml.
-            install("scikit-build==0.18.1")
-            install("scikit-build-core==0.10.7")
-
             install("-r", pororoRequirements)
         }
     }

@@ -13,15 +13,6 @@ jedi==0.19.2
 meson==1.5.1
 nest-asyncio==1.5.6
 networkx==3.5
-# Newer ninja releases rely on scikit-build-core during the build step but
-# don't declare it in their build requirements, causing pip to fail when
-# resolving dependencies in isolation. Install the required build helpers
-# before ninja so that pip can import them while preparing metadata.
-scikit-build==0.18.1
-scikit-build-core==0.10.7
-# Pin ninja to the latest release which still publishes manylinux wheels and
-# falls back to the source distribution only when necessary.
-ninja==1.11.1
 numpy==2.2.3
 opencv-python==4.11.0.0
 packaging==24.2
