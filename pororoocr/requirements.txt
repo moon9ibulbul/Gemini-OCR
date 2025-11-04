@@ -19,6 +19,9 @@ networkx==3.5
 # which installs cleanly.
 ninja==1.11.1
 numpy==2.2.3
+# Add legacy scikit-build to provide the 'skbuild' module used by
+# older setup.py-based builds like ninja's source distribution.
+scikit-build==0.18.1
 scikit-build-core==0.10.7
 opencv-python==4.11.0.0
 packaging==24.2
