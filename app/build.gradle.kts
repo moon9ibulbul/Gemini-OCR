@@ -18,13 +18,6 @@ android {
         versionCode = 5
         versionName = "1.5.0"
 
-        python {
-            version = "3.11"
-            pip {
-                install("-r", pororoRequirements)
-            }
-        }
-
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -62,10 +55,21 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
 
-    sourceSets["main"].apply {
-        python.srcDir("src/main/python")
-        python.srcDir("../pororoocr")
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        pip {
+            install("-r", pororoRequirements)
+        }
+    }
+
+    sourceSets {
+        getByName("main") {
+            srcDir("src/main/python")
+            srcDir("../pororoocr")
+        }
     }
 }
 
