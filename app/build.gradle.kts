@@ -64,9 +64,10 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = "3.13"
+        version = "3.10"
         pip {
-            install("meson==1.5.1")
+            install("meson")
+            install("ninja")
             install("-r", pororoRequirements)
         }
     }
