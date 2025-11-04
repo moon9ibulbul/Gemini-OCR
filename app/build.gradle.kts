@@ -66,8 +66,6 @@ chaquopy {
     defaultConfig {
         version = "3.10"
         pip {
-            install("meson")
-            install("ninja")
             install("-r", pororoRequirements)
         }
     }
