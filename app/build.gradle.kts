@@ -2,7 +2,10 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.chaquo.python")
 }
+
+val pororoRequirements = rootProject.file("pororoocr/requirements.txt").absolutePath
 
 android {
     namespace = "com.astral.ocr"
@@ -12,8 +15,15 @@ android {
         applicationId = "com.astral.ocr"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 5
+        versionName = "1.5.0"
+
+        python {
+            version = "3.11"
+            pip {
+                install("-r", pororoRequirements)
+            }
+        }
 
         vectorDrawables {
             useSupportLibrary = true
@@ -51,6 +61,11 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    sourceSets["main"].apply {
+        python.srcDir("src/main/python")
+        python.srcDir("../pororoocr")
     }
 }
 
