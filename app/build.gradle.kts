@@ -66,6 +66,17 @@ chaquopy {
     defaultConfig {
         version = "3.13"
         pip {
+            // Disable build isolation so that packages installed in the base
+            // environment (like Meson) are visible when building wheels. This
+            // avoids failures when compiling packages such as matplotlib,
+            // which rely on the "meson" executable during installation.
+            options("--no-build-isolation")
+
+            // Ensure the Meson build tool is available before installing the
+            // rest of the requirements, preventing "meson" command lookup
+            // failures during wheel builds.
+            install("meson==1.5.1")
+
             install("-r", pororoRequirements)
         }
     }
