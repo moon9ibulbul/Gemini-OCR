@@ -5,12 +5,12 @@ MIT License
 """
 
 import cv2
+import imageio.v2 as imageio
 import numpy as np
-from skimage import io
 
 
 def load_image(img_file):
-    img = io.imread(img_file)  # RGB order
+    img = imageio.imread(img_file)  # RGB order
     if img.shape[0] == 2:
         img = img[0]
     if len(img.shape) == 2:
