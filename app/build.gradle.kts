@@ -76,7 +76,6 @@ chaquopy {
             // rest of the requirements, preventing "meson" command lookup
             // failures during wheel builds.
             install("meson==1.5.1")
-            install("cppy==1.3.1")
 
             install("-r", pororoRequirements)
         }
