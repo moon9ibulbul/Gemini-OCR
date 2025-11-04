@@ -1,11 +1,30 @@
 import cv2
+import logging
 import numpy as np
 import platform
 from PIL import ImageFont, ImageDraw, Image
-from matplotlib import pyplot as plt
+
+logger = logging.getLogger(__name__)
+
+try:
+    from matplotlib import pyplot as plt  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    plt = None  # type: ignore[assignment]
+
+_matplotlib_warning_logged = False
 
 
 def plt_imshow(title='image', img=None, figsize=(8, 5)):
+    global _matplotlib_warning_logged
+
+    if plt is None:
+        if not _matplotlib_warning_logged:
+            logger.warning(
+                "Matplotlib is not available; skipping image visualization request."
+            )
+            _matplotlib_warning_logged = True
+        return
+
     plt.figure(figsize=figsize)
 
     if type(img) is str:
