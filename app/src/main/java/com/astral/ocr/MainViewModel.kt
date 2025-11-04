@@ -6,9 +6,11 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.astral.ocr.data.OcrProvider
 import com.astral.ocr.data.OcrResult
 import com.astral.ocr.data.SettingsRepository
 import com.astral.ocr.network.GeminiOcrService
+import com.astral.ocr.network.PororoOcrService
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,12 +23,14 @@ import kotlinx.coroutines.launch
 class MainViewModel(
     private val context: Context,
     private val settingsRepository: SettingsRepository = SettingsRepository(context),
-    private val geminiOcrService: GeminiOcrService = GeminiOcrService()
+    private val geminiOcrService: GeminiOcrService = GeminiOcrService(),
+    private val pororoOcrService: PororoOcrService = PororoOcrService(context)
 ) : ViewModel() {
 
     data class UiState(
         val apiKey: String = "",
         val model: String = "gemini-1.5-flash-latest",
+        val provider: OcrProvider = OcrProvider.GEMINI,
         val isProcessing: Boolean = false,
         val results: List<OcrResult> = emptyList(),
         val bulkMode: Boolean = false,
@@ -44,6 +48,7 @@ class MainViewModel(
     val uiState: StateFlow<UiState> = combine(
         settingsRepository.apiKey,
         settingsRepository.model,
+        settingsRepository.provider,
         mutableProcessing,
         mutableResults,
         mutableBulkMode,
@@ -51,14 +56,20 @@ class MainViewModel(
     ) { values ->
         val apiKey = values[0] as String
         val model = values[1] as String
-        val processing = values[2] as Boolean
-        val results = values[3] as List<OcrResult>
-        val bulk = values[4] as Boolean
-        val saved = values[5] as String?
+        val provider = values[2] as OcrProvider
+        val processing = values[3] as Boolean
+        val results = values[4] as List<OcrResult>
+        val bulk = values[5] as Boolean
+        val saved = values[6] as String?
 
         UiState(
             apiKey = apiKey,
-            model = if (model.isBlank()) "gemini-1.5-flash-latest" else model,
+            model = if (provider == OcrProvider.GEMINI && model.isBlank()) {
+                "gemini-1.5-flash-latest"
+            } else {
+                model
+            },
+            provider = provider,
             isProcessing = processing,
             results = results,
             bulkMode = bulk,
@@ -86,11 +97,18 @@ class MainViewModel(
         }
     }
 
+    fun updateProvider(value: OcrProvider) {
+        viewModelScope.launch {
+            settingsRepository.updateProvider(value)
+        }
+    }
+
     fun processSingle(contentResolver: ContentResolver, uri: Uri) {
         viewModelScope.launch {
             mutableProcessing.value = true
+            val provider = uiState.value.provider
             val start = System.currentTimeMillis()
-            val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
+            val result = runOcr(contentResolver, uri, provider)
             result.fold(
                 onSuccess = { text ->
                     val duration = System.currentTimeMillis() - start
@@ -111,9 +129,10 @@ class MainViewModel(
         viewModelScope.launch {
             mutableProcessing.value = true
             val newResults = mutableListOf<OcrResult>()
+            val provider = uiState.value.provider
             for (uri in uris) {
                 val start = System.currentTimeMillis()
-                val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
+                val result = runOcr(contentResolver, uri, provider)
                 result.fold(
                     onSuccess = { text ->
                         val duration = System.currentTimeMillis() - start
@@ -135,6 +154,13 @@ class MainViewModel(
 
     fun setLastSavedPath(path: String?) {
         mutableLastSavedPath.value = path
+    }
+
+    private suspend fun runOcr(contentResolver: ContentResolver, uri: Uri, provider: OcrProvider): Result<String> {
+        return when (provider) {
+            OcrProvider.GEMINI -> geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
+            OcrProvider.PORORO -> pororoOcrService.extractSpeech(contentResolver, uri)
+        }
     }
 
     private fun notifyError(ex: Throwable) {
