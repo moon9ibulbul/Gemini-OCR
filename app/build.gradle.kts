@@ -66,6 +66,7 @@ chaquopy {
     defaultConfig {
         version = "3.13"
         pip {
+            install("meson==1.5.1")
             install("-r", pororoRequirements)
         }
     }
