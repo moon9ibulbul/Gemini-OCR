@@ -67,6 +67,7 @@ chaquopy {
         version = "3.13"
         pip {
             install("meson==1.5.1")
+            install("ninja==1.11.1.2")
             install("-r", pororoRequirements)
         }
     }
