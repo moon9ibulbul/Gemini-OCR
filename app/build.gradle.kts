@@ -77,6 +77,12 @@ chaquopy {
             // failures during wheel builds.
             install("meson==1.5.1")
 
+            // Pre-install cppy so that it's available when building kiwisolver
+            // from source. Chaquopy processes this list sequentially, so
+            // installing cppy here guarantees that the build dependency is
+            // satisfied before the remainder of the requirements are handled.
+            install("cppy==1.3.1")
+
             install("-r", pororoRequirements)
         }
     }
