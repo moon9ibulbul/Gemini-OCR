@@ -64,7 +64,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = "3.10"
+        version = "3.12.3"
         pip {
             install("-r", pororoRequirements)
         }
