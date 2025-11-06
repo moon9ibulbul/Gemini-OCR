@@ -35,8 +35,11 @@ class PororoModelRepository(context: Context) {
 
     private fun ensureDownloaded(lang: String, relativePath: String, isDict: Boolean): File {
         val target = File(baseDir, "$lang/$relativePath")
-        if (target.exists()) {
+        if (target.exists() && target.length() >= minExpectedSize(relativePath)) {
             return target
+        }
+        if (target.exists()) {
+            target.delete()
         }
         target.parentFile?.mkdirs()
         val remoteName = relativePath.substringAfterLast('/')
@@ -70,14 +73,21 @@ class PororoModelRepository(context: Context) {
                         lastException = IOException("Tidak ada konten dari $url")
                         return@use
                     }
+                    val expectedLength = body.contentLength()
                     body.byteStream().use { input ->
                         FileOutputStream(target).use { output ->
-                            input.copyTo(output)
+                            val bytesCopied = input.copyTo(output)
+                            if (bytesCopied <= 0) {
+                                throw IOException("Konten kosong dari $url")
+                            }
+                            if (expectedLength > 0 && bytesCopied != expectedLength) {
+                                throw IOException("Ukuran unduhan tidak cocok untuk $url")
+                            }
                         }
                     }
                 }
 
-                if (target.exists()) {
+                if (target.exists() && target.length() >= minExpectedSize(target.name)) {
                     return
                 }
             } catch (ex: IOException) {
@@ -88,5 +98,14 @@ class PororoModelRepository(context: Context) {
 
         target.delete()
         throw lastException ?: IOException("Gagal mengunduh ${urls.firstOrNull() ?: "model"}")
+    }
+
+    private fun minExpectedSize(relativePath: String): Long {
+        val name = relativePath.substringAfterLast('/')
+        return when (name) {
+            "ocr-opt.txt" -> 10L
+            "craft.pt", "brainocr.pt" -> 1024L
+            else -> 1L
+        }
     }
 }
