@@ -22,16 +22,25 @@ class MainActivity : ComponentActivity() {
     private val singleImagePicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             viewModel.onImagePickedCallback?.invoke(uri)
+            viewModel.onImagePickedCallback = null
         }
 
     private val multipleImagePicker =
         registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             viewModel.onMultipleImagesPickedCallback?.invoke(uris)
+            viewModel.onMultipleImagesPickedCallback = null
         }
 
     private val documentCreator =
         registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
             viewModel.onDocumentCreatedCallback?.invoke(uri)
+            viewModel.onDocumentCreatedCallback = null
+        }
+
+    private val pororoModelImporter =
+        registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            viewModel.onPororoModelsPickedCallback?.invoke(uris)
+            viewModel.onPororoModelsPickedCallback = null
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,6 +71,10 @@ class MainActivity : ComponentActivity() {
                         createDocument = { name, callback ->
                             viewModel.onDocumentCreatedCallback = callback
                             documentCreator.launch(name)
+                        },
+                        importPororoModels = { mimeTypes, callback ->
+                            viewModel.onPororoModelsPickedCallback = callback
+                            pororoModelImporter.launch(mimeTypes)
                         }
                     )
                 }
