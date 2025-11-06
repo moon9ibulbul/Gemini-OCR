@@ -2,10 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("com.chaquo.python")
 }
-
-val pororoRequirements = rootProject.file("pororoocr/requirements.txt").absolutePath
 
 android {
     namespace = "com.astral.ocr"
@@ -62,22 +59,6 @@ android {
     }
 }
 
-chaquopy {
-    defaultConfig {
-        version = "3.10"
-        pip {
-            install("-r", pororoRequirements)
-        }
-    }
-
-    sourceSets {
-        getByName("main") {
-            srcDir("src/main/python")
-            srcDir("../pororoocr")
-        }
-    }
-}
-
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
 
@@ -98,6 +79,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation("org.pytorch:pytorch_android:2.2.0")
+    implementation("org.pytorch:pytorch_android_torchvision:2.2.0")
+    implementation("com.quickbirdstudios:opencv:4.9.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
