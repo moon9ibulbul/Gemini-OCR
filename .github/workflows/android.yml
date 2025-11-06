@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '21'   # JDK 21 OK untuk AGP modern
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -28,8 +28,23 @@ jobs:
         with:
           gradle-version: 8.7
 
+      # Host interpreter untuk Chaquopy buildPython harus 3.10
+      - name: Set up Python 3.10 for Chaquopy buildPython
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # (Opsional) bersihkan override buildPython kalau ada di repo/properties
+      - name: Remove any Chaquopy buildPython overrides
+        run: |
+          sed -i '/buildPython/d' app/build.gradle || true
+          sed -i '/buildPython/d' app/build.gradle.kts || true
+          sed -i '/^chaquopy\.buildPython/d' gradle.properties || true
+          sed -i '/^chaquopy\.buildPython/d' local.properties || true
+
+      # Build APK. Pakai wrapper project (lebih aman) dan ikat buildPython -> Python 3.10
       - name: Assemble debug APK
-        run: gradle assembleDebug
+        run: ./gradlew --no-daemon -Pchaquopy.buildPython="$(python -c 'import sys; print(sys.executable)')" assembleDebug
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
