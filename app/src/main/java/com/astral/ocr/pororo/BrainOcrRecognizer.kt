@@ -55,7 +55,7 @@ internal class BrainOcrRecognizer {
         val batchSize = shape[0].toInt()
         val sequenceLength = shape[1].toInt()
         val numClasses = shape[2].toInt()
-        val logits = outputTensor.dataAsFloatArray()
+        val logits = outputTensor.dataAsFloatArray
 
         val results = mutableListOf<RecognizedText>()
         for (index in 0 until batchSize) {
@@ -96,7 +96,7 @@ internal class BrainOcrRecognizer {
 
     private fun prepareCrop(crop: Mat, imgH: Int, imgW: Int): FloatArray {
         val floatMat = Mat()
-        crop.convertTo(floatMat, CvType.CV32F)
+        crop.convertTo(floatMat, CvType.CV_32F)
         val height = floatMat.rows()
         val width = floatMat.cols()
         val ratio = width.toDouble() / height.toDouble()
@@ -104,7 +104,7 @@ internal class BrainOcrRecognizer {
 
         val resized = Mat()
         Imgproc.resize(floatMat, resized, Size(targetW.toDouble(), imgH.toDouble()), 0.0, 0.0, Imgproc.INTER_LINEAR)
-        val padded = Mat.zeros(imgH, imgW, CvType.CV32F)
+        val padded = Mat.zeros(imgH, imgW, CvType.CV_32F)
         val roi = padded.submat(0, imgH, 0, targetW)
         resized.copyTo(roi)
         roi.release()

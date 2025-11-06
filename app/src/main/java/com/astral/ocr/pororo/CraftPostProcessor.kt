@@ -51,7 +51,7 @@ internal object CraftPostProcessor {
             val size = stats.get(label, Imgproc.CC_STAT_AREA)?.getOrNull(0)?.toInt() ?: 0
             if (size < 10) continue
 
-            val mask = Mat.zeros(imgH, imgW, CvType.CV8U)
+            val mask = Mat.zeros(imgH, imgW, CvType.CV_8U)
             for (y in 0 until imgH) {
                 for (x in 0 until imgW) {
                     if (labels.get(y, x)[0].toInt() == label) {
@@ -123,7 +123,14 @@ internal object CraftPostProcessor {
                 val r = xs.maxOrNull() ?: 0.0
                 val t = ys.minOrNull() ?: 0.0
                 val b = ys.maxOrNull() ?: 0.0
-                polys.add(floatArrayOf(l.toFloat(), t.toFloat(), r.toFloat(), t.toFloat(), r.toFloat(), b.toFloat(), l.toFloat(), b.toFloat()))
+                polys.add(
+                    floatArrayOf(
+                        l.toFloat(), t.toFloat(),
+                        r.toFloat(), t.toFloat(),
+                        r.toFloat(), b.toFloat(),
+                        l.toFloat(), b.toFloat()
+                    )
+                )
             } else {
                 pts.sortBy { it.x + it.y }
                 val ordered = arrayOf(pts[0], pts[1], pts[3], pts[2])
@@ -176,7 +183,7 @@ internal object CraftPostProcessor {
     }
 
     private fun Mat.convertToByte(): Mat {
-        val out = Mat(rows(), cols(), CvType.CV8UC1)
+        val out = Mat(rows(), cols(), CvType.CV_8UC1)
         Imgproc.threshold(this, out, 0.0, 255.0, Imgproc.THRESH_BINARY)
         return out
     }
