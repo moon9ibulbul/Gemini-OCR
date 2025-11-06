@@ -7,6 +7,8 @@ import com.astral.ocr.pororo.PororoOcrEngine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -17,35 +19,39 @@ class PororoOcrService(private val context: Context) {
         PororoOcrEngine(context)
     }
 
+    private val mutex = Mutex()
+
     suspend fun extractSpeech(
         contentResolver: ContentResolver,
         uri: Uri,
         dilatationFactor: Float = 2.0f
-    ): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val tempFile = File.createTempFile("astral_pororo", null, context.cacheDir)
+    ): Result<String> = mutex.withLock {
+        withContext(Dispatchers.IO) {
             try {
-                contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(tempFile).use { output ->
-                        input.copyTo(output)
-                    }
-                } ?: return@withContext Result.failure(IOException("Gagal membaca berkas gambar."))
+                val tempFile = File.createTempFile("astral_pororo", null, context.cacheDir)
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(tempFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    } ?: return@withContext Result.failure(IOException("Gagal membaca berkas gambar."))
 
-                val formattedText = engine.runOcr(tempFile, dilatationFactor).trim()
-                if (formattedText.isEmpty()) {
-                    Result.failure(IOException("Pororo tidak mengembalikan teks."))
-                } else {
-                    Result.success(formattedText)
+                    val formattedText = engine.runOcr(tempFile, dilatationFactor).trim()
+                    if (formattedText.isEmpty()) {
+                        Result.failure(IOException("Pororo tidak mengembalikan teks."))
+                    } else {
+                        Result.success(formattedText)
+                    }
+                } catch (ex: Throwable) {
+                    if (ex is CancellationException) throw ex
+                    Result.failure(IOException(ex.message ?: "Pororo gagal memproses gambar.", ex))
+                } finally {
+                    tempFile.delete()
                 }
             } catch (ex: Throwable) {
                 if (ex is CancellationException) throw ex
                 Result.failure(IOException(ex.message ?: "Pororo gagal memproses gambar.", ex))
-            } finally {
-                tempFile.delete()
             }
-        } catch (ex: Throwable) {
-            if (ex is CancellationException) throw ex
-            Result.failure(IOException(ex.message ?: "Pororo gagal memproses gambar.", ex))
         }
     }
 }
