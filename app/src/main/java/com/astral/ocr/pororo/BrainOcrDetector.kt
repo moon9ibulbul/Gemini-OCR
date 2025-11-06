@@ -13,15 +13,23 @@ internal class BrainOcrDetector {
 
     @Volatile
     private var module: Module? = null
+    private val moduleLock = Any()
 
     private fun ensureModule(modelPath: File): Module {
         val current = module
         if (current != null) {
             return current
         }
-        val loaded = Module.load(modelPath.absolutePath)
-        module = loaded
-        return loaded
+        return synchronized(moduleLock) {
+            val existing = module
+            if (existing != null) {
+                existing
+            } else {
+                Module.load(modelPath.absolutePath).also { loaded ->
+                    module = loaded
+                }
+            }
+        }
     }
 
     fun detect(image: Mat, config: BrainOcrConfig, dilatationFactor: Float): List<FloatArray> {
@@ -49,7 +57,9 @@ internal class BrainOcrDetector {
         val batchTensor = Tensor.fromBlob(inputData, batchShape)
 
         val module = ensureModule(config.detectorPath)
-        val output = module.forward(IValue.from(batchTensor)).toTuple()
+        val output = synchronized(moduleLock) {
+            module.forward(IValue.from(batchTensor)).toTuple()
+        }
         val yTensor = output[0].toTensor()
         val shape = yTensor.shape()
         val h = shape[1].toInt()

@@ -28,15 +28,23 @@ internal class BrainOcrRecognizer {
 
     @Volatile
     private var module: Module? = null
+    private val moduleLock = Any()
 
     private fun ensureModule(modelPath: File): Module {
         val current = module
         if (current != null) {
             return current
         }
-        val loaded = Module.load(modelPath.absolutePath)
-        module = loaded
-        return loaded
+        return synchronized(moduleLock) {
+            val existing = module
+            if (existing != null) {
+                existing
+            } else {
+                Module.load(modelPath.absolutePath).also { loaded ->
+                    module = loaded
+                }
+            }
+        }
     }
 
     fun recognize(gray: Mat, polygons: List<FloatArray>, config: BrainOcrConfig): List<RecognizedText> {
@@ -50,7 +58,9 @@ internal class BrainOcrRecognizer {
 
         val inputTensor = buildInputTensor(crops, imgH, imgW)
         val module = ensureModule(config.recognizerPath)
-        val outputTensor = module.forward(IValue.from(inputTensor)).toTensor()
+        val outputTensor = synchronized(moduleLock) {
+            module.forward(IValue.from(inputTensor)).toTensor()
+        }
         val shape = outputTensor.shape()
         val batchSize = shape[0].toInt()
         val sequenceLength = shape[1].toInt()
