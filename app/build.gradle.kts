@@ -74,7 +74,7 @@ dependencies {
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    implementation("com.chaquo.python:android:15.0.1")
+    implementation("com.chaquo.python.runtime:chaquopy:15.0.1")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.activity:activity-compose:1.9.0")
