@@ -16,6 +16,9 @@ private val MODEL_FALLBACK_URLS = mapOf(
     ),
     "brainocr.pt" to listOf(
         "https://huggingface.co/Snowad/Pororo-ocr/resolve/main/brainocr.pt?download=true"
+    ),
+    "ocr-opt.txt" to listOf(
+        "https://huggingface.co/Snowad/Pororo-ocr/resolve/e91525ebf1d11e133f6fb71c8f6fa372777a9a0f/ocr-opt.txt?download=true"
     )
 )
 
