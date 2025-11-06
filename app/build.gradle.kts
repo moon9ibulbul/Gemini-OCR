@@ -79,9 +79,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("org.pytorch:pytorch_android:2.2.0")
-    implementation("org.pytorch:pytorch_android_torchvision:2.2.0")
-    implementation("com.quickbirdstudios:opencv:4.9.0")
+    implementation("org.pytorch:pytorch_android:2.1.0")
+    implementation("org.pytorch:pytorch_android_torchvision:2.1.0")
+    implementation("org.opencv:opencv-android:4.9.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
