@@ -60,8 +60,8 @@ internal class BrainOcrDetector {
         var offset = 0
         for (row in 0 until h) {
             for (col in 0 until w) {
-                scoreText.put(row, col, doubleArrayOf(data[offset].toDouble()))
-                scoreLink.put(row, col, doubleArrayOf(data[offset + 1].toDouble()))
+                scoreText.put(row, col, floatArrayOf(data[offset]))
+                scoreLink.put(row, col, floatArrayOf(data[offset + 1]))
                 offset += 2
             }
         }
