@@ -9,6 +9,7 @@ buildscript {
         google()
         mavenCentral()
         maven { url = uri("https://chaquo.com/maven") }
+        maven { url = uri("https://repo1.maven.org/maven2/") }
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.5.0")
