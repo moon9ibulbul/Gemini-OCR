@@ -10,6 +10,15 @@ import java.io.IOException
 private const val BASE_MODEL_URL = "https://twg.kakaocdn.net/pororo/%s/models/%s"
 private const val BASE_DICT_URL = "https://twg.kakaocdn.net/pororo/%s/dicts/%s"
 
+private val MODEL_FALLBACK_URLS = mapOf(
+    "craft.pt" to listOf(
+        "https://huggingface.co/Snowad/Pororo-ocr/resolve/main/craft.pt?download=true"
+    ),
+    "brainocr.pt" to listOf(
+        "https://huggingface.co/Snowad/Pororo-ocr/resolve/main/brainocr.pt?download=true"
+    )
+)
+
 class PororoModelRepository(context: Context) {
 
     private val client = OkHttpClient()
@@ -28,32 +37,53 @@ class PororoModelRepository(context: Context) {
         }
         target.parentFile?.mkdirs()
         val remoteName = relativePath.substringAfterLast('/')
-        val url = if (isDict) {
-            String.format(BASE_DICT_URL, lang, remoteName)
+        val urls = if (isDict) {
+            listOf(String.format(BASE_DICT_URL, lang, remoteName))
         } else {
-            String.format(BASE_MODEL_URL, lang, remoteName)
+            buildModelUrls(lang, remoteName)
         }
 
-        downloadToFile(url, target)
+        downloadToFile(urls, target)
         return target
     }
 
-    private fun downloadToFile(url: String, target: File) {
-        val request = Request.Builder().url(url).build()
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("Gagal mengunduh $url: ${response.code}")
-                }
-                response.body?.byteStream()?.use { input ->
-                    FileOutputStream(target).use { output ->
-                        input.copyTo(output)
+    private fun buildModelUrls(lang: String, remoteName: String): List<String> {
+        val defaultUrl = String.format(BASE_MODEL_URL, lang, remoteName)
+        val fallbacks = MODEL_FALLBACK_URLS[remoteName].orEmpty()
+        return listOf(defaultUrl) + fallbacks
+    }
+
+    private fun downloadToFile(urls: List<String>, target: File) {
+        var lastException: IOException? = null
+        for (url in urls) {
+            val request = Request.Builder().url(url).build()
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        lastException = IOException("Gagal mengunduh $url: ${response.code}")
+                        return@use
                     }
-                } ?: throw IOException("Tidak ada konten dari $url")
+                    val body = response.body ?: run {
+                        lastException = IOException("Tidak ada konten dari $url")
+                        return@use
+                    }
+                    body.byteStream().use { input ->
+                        FileOutputStream(target).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                if (target.exists()) {
+                    return
+                }
+            } catch (ex: IOException) {
+                target.delete()
+                lastException = ex
             }
-        } catch (ex: IOException) {
-            target.delete()
-            throw ex
         }
+
+        target.delete()
+        throw lastException ?: IOException("Gagal mengunduh ${urls.firstOrNull() ?: "model"}")
     }
 }
