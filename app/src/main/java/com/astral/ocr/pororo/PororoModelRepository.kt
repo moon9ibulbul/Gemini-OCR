@@ -1,111 +1,135 @@
 package com.astral.ocr.pororo
 
+import android.content.ContentResolver
 import android.content.Context
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import android.database.Cursor
+import android.net.Uri
+import android.provider.OpenableColumns
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 
-private const val BASE_MODEL_URL = "https://twg.kakaocdn.net/pororo/%s/models/%s"
-private const val BASE_DICT_URL = "https://twg.kakaocdn.net/pororo/%s/dicts/%s"
-
-private val MODEL_FALLBACK_URLS = mapOf(
-    "craft.pt" to listOf(
-        "https://huggingface.co/Snowad/Pororo-ocr/resolve/main/craft.pt?download=true"
-    ),
-    "brainocr.pt" to listOf(
-        "https://huggingface.co/Snowad/Pororo-ocr/resolve/main/brainocr.pt?download=true"
-    ),
-    "ocr-opt.txt" to listOf(
-        "https://huggingface.co/Snowad/Pororo-ocr/resolve/e91525ebf1d11e133f6fb71c8f6fa372777a9a0f/ocr-opt.txt?download=true"
-    )
-)
+private const val DEFAULT_LANG = "ko"
 
 class PororoModelRepository(context: Context) {
 
-    private val client = OkHttpClient()
+    data class ImportResult(
+        val imported: List<String>,
+        val ignored: List<String>,
+        val errors: Map<String, String>
+    )
+
     private val baseDir: File = File(context.filesDir, "pororo").apply { mkdirs() }
 
-    fun getDetectorModel(lang: String): File = ensureDownloaded(lang, "misc/craft.pt", isDict = false)
+    fun getDetectorModel(lang: String): File = ensureAvailable(lang, "craft.pt")
 
-    fun getRecognizerModel(lang: String): File = ensureDownloaded(lang, "misc/brainocr.pt", isDict = false)
+    fun getRecognizerModel(lang: String): File = ensureAvailable(lang, "brainocr.pt")
 
-    fun getOptionsFile(lang: String): File = ensureDownloaded(lang, "misc/ocr-opt.txt", isDict = false)
+    fun getOptionsFile(lang: String): File = ensureAvailable(lang, "ocr-opt.txt")
 
-    private fun ensureDownloaded(lang: String, relativePath: String, isDict: Boolean): File {
-        val target = File(baseDir, "$lang/$relativePath")
-        if (target.exists() && target.length() >= minExpectedSize(relativePath)) {
-            return target
+    fun hasAllRequiredModels(lang: String = DEFAULT_LANG): Boolean {
+        return REQUIRED_FILES.keys.all { name ->
+            val file = File(baseDir, "$lang/${REQUIRED_FILES.getValue(name)}")
+            file.exists() && file.length() >= minExpectedSize(name)
         }
-        if (target.exists()) {
-            target.delete()
-        }
-        target.parentFile?.mkdirs()
-        val remoteName = relativePath.substringAfterLast('/')
-        val urls = if (isDict) {
-            listOf(String.format(BASE_DICT_URL, lang, remoteName))
-        } else {
-            buildModelUrls(lang, remoteName)
-        }
-
-        downloadToFile(urls, target)
-        return target
     }
 
-    private fun buildModelUrls(lang: String, remoteName: String): List<String> {
-        val defaultUrl = String.format(BASE_MODEL_URL, lang, remoteName)
-        val fallbacks = MODEL_FALLBACK_URLS[remoteName].orEmpty()
-        return listOf(defaultUrl) + fallbacks
-    }
+    fun importModels(contentResolver: ContentResolver, uris: List<Uri>, lang: String = DEFAULT_LANG): ImportResult {
+        if (uris.isEmpty()) {
+            return ImportResult(emptyList(), emptyList(), emptyMap())
+        }
 
-    private fun downloadToFile(urls: List<String>, target: File) {
-        var lastException: IOException? = null
-        for (url in urls) {
-            val request = Request.Builder().url(url).build()
+        val imported = mutableListOf<String>()
+        val ignored = mutableListOf<String>()
+        val errors = mutableMapOf<String, String>()
+
+        for (uri in uris) {
+            val displayName = resolveDisplayName(contentResolver, uri)?.trim()
+            if (displayName.isNullOrEmpty()) {
+                ignored.add("(tanpa nama)")
+                continue
+            }
+
+            val normalized = REQUIRED_FILES.keys.firstOrNull { it.equals(displayName, ignoreCase = true) }
+            if (normalized == null) {
+                ignored.add(displayName)
+                continue
+            }
+
+            val relativePath = REQUIRED_FILES.getValue(normalized)
+            val target = File(baseDir, "$lang/$relativePath")
+            target.parentFile?.mkdirs()
+
             try {
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        lastException = IOException("Gagal mengunduh $url: ${response.code}")
-                        return@use
-                    }
-                    val body = response.body ?: run {
-                        lastException = IOException("Tidak ada konten dari $url")
-                        return@use
-                    }
-                    val expectedLength = body.contentLength()
-                    body.byteStream().use { input ->
-                        FileOutputStream(target).use { output ->
-                            val bytesCopied = input.copyTo(output)
-                            if (bytesCopied <= 0) {
-                                throw IOException("Konten kosong dari $url")
-                            }
-                            if (expectedLength > 0 && bytesCopied != expectedLength) {
-                                throw IOException("Ukuran unduhan tidak cocok untuk $url")
-                            }
-                        }
-                    }
+                contentResolver.openInputStream(uri)?.use { input ->
+                    copyToFile(input, target)
+                } ?: throw IOException("Tidak dapat membaca konten $displayName")
+
+                if (target.length() < minExpectedSize(normalized)) {
+                    target.delete()
+                    throw IOException("Ukuran berkas $displayName tidak valid")
                 }
 
-                if (target.exists() && target.length() >= minExpectedSize(target.name)) {
-                    return
-                }
+                imported.add(normalized)
             } catch (ex: IOException) {
                 target.delete()
-                lastException = ex
+                errors[normalized] = ex.message ?: "Gagal mengimpor $normalized"
             }
         }
 
-        target.delete()
-        throw lastException ?: IOException("Gagal mengunduh ${urls.firstOrNull() ?: "model"}")
+        return ImportResult(imported.distinct(), ignored, errors)
     }
 
-    private fun minExpectedSize(relativePath: String): Long {
-        val name = relativePath.substringAfterLast('/')
-        return when (name) {
+    private fun ensureAvailable(lang: String, name: String): File {
+        val relativePath = REQUIRED_FILES.getValue(name)
+        val target = File(baseDir, "$lang/$relativePath")
+        if (!target.exists() || target.length() < minExpectedSize(name)) {
+            throw IllegalStateException(
+                "Model Pororo \"$name\" belum ditemukan. Impor craft.pt, brainocr.pt, dan ocr-opt.txt melalui menu Pengaturan."
+            )
+        }
+        return target
+    }
+
+    private fun copyToFile(input: InputStream, target: File) {
+        FileOutputStream(target).use { output ->
+            input.copyTo(output)
+        }
+    }
+
+    private fun resolveDisplayName(contentResolver: ContentResolver, uri: Uri): String? {
+        if (uri.scheme == ContentResolver.SCHEME_FILE) {
+            return uri.path?.let { File(it).name }
+        }
+
+        var cursor: Cursor? = null
+        return try {
+            cursor = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            if (cursor != null && cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index != -1) cursor.getString(index) else null
+            } else {
+                null
+            }
+        } finally {
+            cursor?.close()
+        }
+    }
+
+    private fun minExpectedSize(name: String): Long {
+        return when (name.lowercase()) {
             "ocr-opt.txt" -> 10L
             "craft.pt", "brainocr.pt" -> 1024L
             else -> 1L
         }
+    }
+
+    companion object {
+        private val REQUIRED_FILES = mapOf(
+            "craft.pt" to "misc/craft.pt",
+            "brainocr.pt" to "misc/brainocr.pt",
+            "ocr-opt.txt" to "misc/ocr-opt.txt"
+        )
     }
 }

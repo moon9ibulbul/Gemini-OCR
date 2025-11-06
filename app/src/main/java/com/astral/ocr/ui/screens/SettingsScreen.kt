@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
@@ -34,7 +35,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onApiKeyChanged: (String) -> Unit,
     onModelChanged: (String) -> Unit,
-    onProviderChanged: (OcrProvider) -> Unit
+    onProviderChanged: (OcrProvider) -> Unit,
+    onImportPororoModels: () -> Unit
 ) {
     val apiKeyState = remember(uiState.apiKey) { mutableStateOf(uiState.apiKey) }
     val modelState = remember(uiState.model) { mutableStateOf(uiState.model) }
@@ -99,6 +101,24 @@ fun SettingsScreen(
                 text = "PororoOCR berjalan lokal dengan Chaquopy sehingga tidak memerlukan API Key.",
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            Text(
+                text = "Impor craft.pt, brainocr.pt, dan ocr-opt.txt secara manual sebelum menjalankan Pororo.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Text(
+                text = if (uiState.pororoReady) {
+                    "Semua berkas model Pororo sudah siap."
+                } else {
+                    "Berkas model Pororo belum lengkap."
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            OutlinedButton(onClick = onImportPororoModels) {
+                Text("Impor Model Pororo")
+            }
         }
 
         Button(
