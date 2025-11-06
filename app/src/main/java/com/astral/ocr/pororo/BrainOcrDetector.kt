@@ -3,6 +3,7 @@ package com.astral.ocr.pororo
 import android.graphics.Bitmap
 import org.pytorch.IValue
 import org.pytorch.Module
+import org.pytorch.Tensor
 import org.pytorch.torchvision.TensorImageUtils
 import org.opencv.core.CvType
 import org.opencv.core.Mat
@@ -38,7 +39,14 @@ internal class BrainOcrDetector {
         val meanRGB = floatArrayOf(0.485f, 0.456f, 0.406f)
         val stdRGB = floatArrayOf(0.229f, 0.224f, 0.225f)
         val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap, meanRGB, stdRGB)
-        val batchTensor = inputTensor.unsqueeze(0)
+        val inputData = inputTensor.dataAsFloatArray
+        val inputShape = inputTensor.shape()
+        val batchShape = LongArray(inputShape.size + 1)
+        batchShape[0] = 1L
+        for (i in inputShape.indices) {
+            batchShape[i + 1] = inputShape[i]
+        }
+        val batchTensor = Tensor.fromBlob(inputData, batchShape)
 
         val module = ensureModule(config.detectorPath)
         val output = module.forward(IValue.from(batchTensor)).toTuple()
@@ -46,14 +54,14 @@ internal class BrainOcrDetector {
         val shape = yTensor.shape()
         val h = shape[1].toInt()
         val w = shape[2].toInt()
-        val data = yTensor.dataAsFloatArray()
-        val scoreText = Mat.zeros(h, w, CvType.CV32F)
-        val scoreLink = Mat.zeros(h, w, CvType.CV32F)
+        val data = yTensor.dataAsFloatArray
+        val scoreText = Mat.zeros(h, w, CvType.CV_32F)
+        val scoreLink = Mat.zeros(h, w, CvType.CV_32F)
         var offset = 0
         for (row in 0 until h) {
             for (col in 0 until w) {
-                scoreText.put(row, col, data[offset].toDouble())
-                scoreLink.put(row, col, data[offset + 1].toDouble())
+                scoreText.put(row, col, doubleArrayOf(data[offset].toDouble()))
+                scoreLink.put(row, col, doubleArrayOf(data[offset + 1].toDouble()))
                 offset += 2
             }
         }
