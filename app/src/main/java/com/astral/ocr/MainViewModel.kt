@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 class MainViewModel(
     private val context: Context,
@@ -140,7 +141,7 @@ class MainViewModel(
 
         try {
             for ((index, uri) in uris.withIndex()) {
-                ensureActive()
+                coroutineContext.ensureActive()
                 val start = System.currentTimeMillis()
                 val result = geminiOcrService.extractSpeech(
                     contentResolver,
