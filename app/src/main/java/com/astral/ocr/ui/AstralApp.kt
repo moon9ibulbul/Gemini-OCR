@@ -46,8 +46,7 @@ fun AstralApp(
     viewModel: MainViewModel,
     pickSingleImage: (Array<String>, (Uri?) -> Unit) -> Unit,
     pickMultipleImages: (Array<String>, (List<Uri>) -> Unit) -> Unit,
-    createDocument: (String, (Uri?) -> Unit) -> Unit,
-    importPororoModels: (Array<String>, (List<Uri>) -> Unit) -> Unit
+    createDocument: (String, (Uri?) -> Unit) -> Unit
 ) {
     val navController: NavHostController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -124,13 +123,7 @@ fun AstralApp(
                         paddingValues = paddingValues,
                         onBack = { navController.popBackStack() },
                         onApiKeyChanged = viewModel::updateApiKey,
-                        onModelChanged = viewModel::updateModel,
-                        onProviderChanged = viewModel::updateProvider,
-                        onImportPororoModels = {
-                            importPororoModels(arrayOf("*/*")) { uris ->
-                                viewModel.importPororoModels(context.contentResolver, uris)
-                            }
-                        }
+                        onModelChanged = viewModel::updateModel
                     )
                 }
             }

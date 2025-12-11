@@ -28,25 +28,8 @@ jobs:
         with:
           gradle-version: 8.7
 
-      # Host Python untuk Chaquopy buildPython HARUS 3.10 (SciPy butuh <3.11)
-      - name: Set up Python 3.10 for Chaquopy buildPython
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      # Bersihkan override buildPython kalau ada di repo/properties
-      - name: Remove any Chaquopy buildPython overrides
-        run: |
-          sed -i '/buildPython/d' app/build.gradle || true
-          sed -i '/buildPython/d' app/build.gradle.kts || true
-          sed -i '/^chaquopy\.buildPython/d' gradle.properties || true
-          sed -i '/^chaquopy\.buildPython/d' local.properties || true
-
-      # Build pakai Gradle dari action (bukan gradlew) + injeksi buildPython=Python 3.10
       - name: Assemble debug APK
-        run: |
-          PY3=$(python -c 'import sys; print(sys.executable)')
-          gradle --no-daemon -Pchaquopy.buildPython="$PY3" assembleDebug
+        run: gradle assembleDebug
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
