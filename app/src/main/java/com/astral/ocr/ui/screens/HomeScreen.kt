@@ -54,7 +54,8 @@ fun HomeScreen(
     onPickMultiple: () -> Unit,
     onToggleBulk: (Boolean) -> Unit,
     onClear: () -> Unit,
-    onSaveResult: (String, String) -> Unit
+    onSaveResult: (String, String) -> Unit,
+    onCancelProcessing: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
     val segmentedOptions = listOf("Single", "Bulk")
@@ -115,7 +116,11 @@ fun HomeScreen(
             ) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Memproses dengan Gemini...")
+                Text(uiState.progressMessage ?: "Memproses dengan Gemini...")
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = onCancelProcessing) {
+                    Text("Batal")
+                }
             }
         }
 

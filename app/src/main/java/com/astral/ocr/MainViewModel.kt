@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import com.astral.ocr.data.OcrResult
 import com.astral.ocr.data.SettingsRepository
 import com.astral.ocr.network.GeminiOcrService
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,13 +32,17 @@ class MainViewModel(
         val isProcessing: Boolean = false,
         val results: List<OcrResult> = emptyList(),
         val bulkMode: Boolean = false,
-        val lastSavedPath: String? = null
+        val lastSavedPath: String? = null,
+        val progressMessage: String? = null
     )
 
     private val mutableResults = MutableStateFlow<List<OcrResult>>(emptyList())
     private val mutableProcessing = MutableStateFlow(false)
     private val mutableBulkMode = MutableStateFlow(false)
     private val mutableLastSavedPath = MutableStateFlow<String?>(null)
+    private val mutableProgress = MutableStateFlow<String?>(null)
+
+    private var processingJob: Job? = null
 
     val notifications = MutableSharedFlow<String?>(replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
@@ -47,7 +53,8 @@ class MainViewModel(
         mutableProcessing,
         mutableResults,
         mutableBulkMode,
-        mutableLastSavedPath
+        mutableLastSavedPath,
+        mutableProgress
     ) { values ->
         val apiKey = values[0] as String
         val model = values[1] as String
@@ -55,6 +62,7 @@ class MainViewModel(
         val results = values[3] as List<OcrResult>
         val bulk = values[4] as Boolean
         val saved = values[5] as String?
+        val progress = values[6] as String?
 
         UiState(
             apiKey = apiKey,
@@ -62,7 +70,8 @@ class MainViewModel(
             isProcessing = processing,
             results = results,
             bulkMode = bulk,
-            lastSavedPath = saved
+            lastSavedPath = saved,
+            progressMessage = progress
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
@@ -87,33 +96,61 @@ class MainViewModel(
     }
 
     fun processSingle(contentResolver: ContentResolver, uri: Uri) {
-        viewModelScope.launch {
-            mutableProcessing.value = true
-            val start = System.currentTimeMillis()
-            val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
-            result.fold(
-                onSuccess = { text ->
-                    val duration = System.currentTimeMillis() - start
-                    mutableResults.value = listOf(
-                        OcrResult(uri.toString(), text, duration)
-                    )
-                },
-                onFailure = { ex ->
-                    notifyError(ex)
-                }
-            )
-            mutableProcessing.value = false
+        processingJob?.cancel()
+        processingJob = viewModelScope.launch {
+            performProcessing(contentResolver, listOf(uri))
         }
     }
 
     fun processBulk(contentResolver: ContentResolver, uris: List<Uri>) {
         if (uris.isEmpty()) return
+        processingJob?.cancel()
+        processingJob = viewModelScope.launch {
+            performProcessing(contentResolver, uris)
+        }
+    }
+
+    fun clearResults() {
+        mutableResults.value = emptyList()
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        mutableProcessing.value = false
+        mutableProgress.value = null
+        processingJob = null
+    }
+
+    fun setLastSavedPath(path: String?) {
+        mutableLastSavedPath.value = path
+    }
+
+    private fun notifyError(ex: Throwable) {
+        val message = ex.message ?: "Terjadi kesalahan tidak diketahui"
         viewModelScope.launch {
-            mutableProcessing.value = true
-            val newResults = mutableListOf<OcrResult>()
-            for (uri in uris) {
+            notifications.emit(message)
+        }
+    }
+
+    private suspend fun performProcessing(contentResolver: ContentResolver, uris: List<Uri>) {
+        mutableProcessing.value = true
+        mutableProgress.value = "Menyiapkan gambar..."
+        val newResults = mutableListOf<OcrResult>()
+        val total = uris.size
+
+        try {
+            for ((index, uri) in uris.withIndex()) {
+                ensureActive()
                 val start = System.currentTimeMillis()
-                val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
+                val result = geminiOcrService.extractSpeech(
+                    contentResolver,
+                    uri,
+                    uiState.value.apiKey,
+                    uiState.value.model,
+                    pageIndex = index,
+                    totalPages = total,
+                    onProgress = { message -> mutableProgress.value = message }
+                )
                 result.fold(
                     onSuccess = { text ->
                         val duration = System.currentTimeMillis() - start
@@ -125,22 +162,10 @@ class MainViewModel(
                 )
             }
             mutableResults.value = newResults
+        } finally {
+            mutableProgress.value = null
             mutableProcessing.value = false
-        }
-    }
-
-    fun clearResults() {
-        mutableResults.value = emptyList()
-    }
-
-    fun setLastSavedPath(path: String?) {
-        mutableLastSavedPath.value = path
-    }
-
-    private fun notifyError(ex: Throwable) {
-        val message = ex.message ?: "Terjadi kesalahan tidak diketahui"
-        viewModelScope.launch {
-            notifications.emit(message)
+            processingJob = null
         }
     }
 }

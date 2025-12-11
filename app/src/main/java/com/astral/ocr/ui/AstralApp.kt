@@ -114,7 +114,8 @@ fun AstralApp(
                                     viewModel.setLastSavedPath(it.toString())
                                 }
                             }
-                        }
+                        },
+                        onCancelProcessing = viewModel::cancelProcessing
                     )
                 }
                 composable(AstralDestination.Settings.route) {
