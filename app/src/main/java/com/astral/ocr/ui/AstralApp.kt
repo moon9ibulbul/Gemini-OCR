@@ -124,7 +124,9 @@ fun AstralApp(
                         paddingValues = paddingValues,
                         onBack = { navController.popBackStack() },
                         onApiKeyChanged = viewModel::updateApiKey,
-                        onModelChanged = viewModel::updateModel
+                        onModelChanged = viewModel::updateModel,
+                        onSliceEnabledChanged = viewModel::updateSliceEnabled,
+                        onSliceHeightChanged = viewModel::updateSliceHeight
                     )
                 }
             }
