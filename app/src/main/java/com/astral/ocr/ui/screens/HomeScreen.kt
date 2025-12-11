@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.ImagesearchRoller
 import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -75,17 +74,13 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
+            text = "Deteksi OCR Manhwa modern",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
             text = "Ekstrak bubble speech, SFX, dan teks luar dengan sekali sentuh.",
             style = MaterialTheme.typography.bodyLarge
-        )
-
-        AssistChip(
-            onClick = {},
-            label = { Text("Mesin: ${uiState.provider.displayName}") },
-            leadingIcon = {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = null)
-            },
-            enabled = false
         )
 
         SingleChoiceSegmentedButtonRow {
@@ -120,7 +115,7 @@ fun HomeScreen(
             ) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Memproses dengan ${uiState.provider.displayName}...")
+                Text("Memproses dengan Gemini...")
             }
         }
 

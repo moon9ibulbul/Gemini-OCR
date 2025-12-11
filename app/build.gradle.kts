@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("com.chaquo.python")
 }
 
 android {
@@ -13,16 +12,11 @@ android {
         applicationId = "com.astral.ocr"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.5.0"
+        versionCode = 1
+        versionName = "1.0"
 
         vectorDrawables {
             useSupportLibrary = true
-        }
-
-        ndk {
-            // Ensure Chaquopy only builds the supported ABI binaries.
-            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 
@@ -57,14 +51,6 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-        jniLibs {
-            pickFirsts += listOf(
-                "lib/armeabi-v7a/libc++_shared.so",
-                "lib/arm64-v8a/libc++_shared.so",
-                "lib/x86/libc++_shared.so",
-                "lib/x86_64/libc++_shared.so"
-            )
-        }
     }
 }
 
@@ -74,7 +60,6 @@ dependencies {
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    implementation("com.chaquo.python.runtime:chaquopy:15.0.1")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.activity:activity-compose:1.9.0")
@@ -89,9 +74,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("org.pytorch:pytorch_android:2.1.0")
-    implementation("org.pytorch:pytorch_android_torchvision:2.1.0")
-    implementation("org.opencv:opencv:4.9.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

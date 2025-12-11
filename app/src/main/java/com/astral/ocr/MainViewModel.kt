@@ -6,12 +6,9 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.astral.ocr.data.OcrProvider
 import com.astral.ocr.data.OcrResult
 import com.astral.ocr.data.SettingsRepository
 import com.astral.ocr.network.GeminiOcrService
-import com.astral.ocr.network.PororoOcrService
-import com.astral.ocr.pororo.PororoModelRepository
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,34 +16,27 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainViewModel(
     private val context: Context,
     private val settingsRepository: SettingsRepository = SettingsRepository(context),
-    private val geminiOcrService: GeminiOcrService = GeminiOcrService(),
-    private val pororoOcrService: PororoOcrService = PororoOcrService(context),
-    private val pororoModelRepository: PororoModelRepository = PororoModelRepository(context)
+    private val geminiOcrService: GeminiOcrService = GeminiOcrService()
 ) : ViewModel() {
 
     data class UiState(
         val apiKey: String = "",
         val model: String = "gemini-1.5-flash-latest",
-        val provider: OcrProvider = OcrProvider.GEMINI,
         val isProcessing: Boolean = false,
         val results: List<OcrResult> = emptyList(),
         val bulkMode: Boolean = false,
-        val lastSavedPath: String? = null,
-        val pororoReady: Boolean = false
+        val lastSavedPath: String? = null
     )
 
     private val mutableResults = MutableStateFlow<List<OcrResult>>(emptyList())
     private val mutableProcessing = MutableStateFlow(false)
     private val mutableBulkMode = MutableStateFlow(false)
     private val mutableLastSavedPath = MutableStateFlow<String?>(null)
-    private val mutablePororoReady = MutableStateFlow(pororoModelRepository.hasAllRequiredModels())
 
     val notifications = MutableSharedFlow<String?>(replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
@@ -54,42 +44,31 @@ class MainViewModel(
     val uiState: StateFlow<UiState> = combine(
         settingsRepository.apiKey,
         settingsRepository.model,
-        settingsRepository.provider,
         mutableProcessing,
         mutableResults,
         mutableBulkMode,
-        mutableLastSavedPath,
-        mutablePororoReady
+        mutableLastSavedPath
     ) { values ->
         val apiKey = values[0] as String
         val model = values[1] as String
-        val provider = values[2] as OcrProvider
-        val processing = values[3] as Boolean
-        val results = values[4] as List<OcrResult>
-        val bulk = values[5] as Boolean
-        val saved = values[6] as String?
-        val pororoReady = values[7] as Boolean
+        val processing = values[2] as Boolean
+        val results = values[3] as List<OcrResult>
+        val bulk = values[4] as Boolean
+        val saved = values[5] as String?
 
         UiState(
             apiKey = apiKey,
-            model = if (provider == OcrProvider.GEMINI && model.isBlank()) {
-                "gemini-1.5-flash-latest"
-            } else {
-                model
-            },
-            provider = provider,
+            model = if (model.isBlank()) "gemini-1.5-flash-latest" else model,
             isProcessing = processing,
             results = results,
             bulkMode = bulk,
-            lastSavedPath = saved,
-            pororoReady = pororoReady
+            lastSavedPath = saved
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     var onImagePickedCallback: ((Uri?) -> Unit)? = null
     var onMultipleImagesPickedCallback: ((List<Uri>) -> Unit)? = null
     var onDocumentCreatedCallback: ((Uri?) -> Unit)? = null
-    var onPororoModelsPickedCallback: ((List<Uri>) -> Unit)? = null
 
     fun toggleBulkMode(enabled: Boolean) {
         mutableBulkMode.value = enabled
@@ -107,18 +86,11 @@ class MainViewModel(
         }
     }
 
-    fun updateProvider(value: OcrProvider) {
-        viewModelScope.launch {
-            settingsRepository.updateProvider(value)
-        }
-    }
-
     fun processSingle(contentResolver: ContentResolver, uri: Uri) {
         viewModelScope.launch {
             mutableProcessing.value = true
-            val provider = uiState.value.provider
             val start = System.currentTimeMillis()
-            val result = runOcr(contentResolver, uri, provider)
+            val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
             result.fold(
                 onSuccess = { text ->
                     val duration = System.currentTimeMillis() - start
@@ -139,10 +111,9 @@ class MainViewModel(
         viewModelScope.launch {
             mutableProcessing.value = true
             val newResults = mutableListOf<OcrResult>()
-            val provider = uiState.value.provider
             for (uri in uris) {
                 val start = System.currentTimeMillis()
-                val result = runOcr(contentResolver, uri, provider)
+                val result = geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
                 result.fold(
                     onSuccess = { text ->
                         val duration = System.currentTimeMillis() - start
@@ -164,48 +135,6 @@ class MainViewModel(
 
     fun setLastSavedPath(path: String?) {
         mutableLastSavedPath.value = path
-    }
-
-    fun importPororoModels(contentResolver: ContentResolver, uris: List<Uri>) {
-        if (uris.isEmpty()) {
-            notifyError(IllegalArgumentException("Tidak ada berkas yang dipilih."))
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    pororoModelRepository.importModels(contentResolver, uris)
-                }
-
-                mutablePororoReady.value = pororoModelRepository.hasAllRequiredModels()
-
-                val messages = mutableListOf<String>()
-                if (result.imported.isNotEmpty()) {
-                    messages += "Model diimpor: ${result.imported.joinToString()}"
-                }
-                if (result.ignored.isNotEmpty()) {
-                    messages += "Diabaikan: ${result.ignored.joinToString()}"
-                }
-                if (result.errors.isNotEmpty()) {
-                    messages += result.errors.entries.joinToString { "${it.key}: ${it.value}" }
-                }
-
-                val summary = messages.joinToString(separator = "\n").ifBlank {
-                    "Tidak ada berkas model yang diimpor."
-                }
-                notifications.emit(summary)
-            } catch (ex: Exception) {
-                notifyError(ex)
-            }
-        }
-    }
-
-    private suspend fun runOcr(contentResolver: ContentResolver, uri: Uri, provider: OcrProvider): Result<String> {
-        return when (provider) {
-            OcrProvider.GEMINI -> geminiOcrService.extractSpeech(contentResolver, uri, uiState.value.apiKey, uiState.value.model)
-            OcrProvider.PORORO -> pororoOcrService.extractSpeech(contentResolver, uri)
-        }
     }
 
     private fun notifyError(ex: Throwable) {
