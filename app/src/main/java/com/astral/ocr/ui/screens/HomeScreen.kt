@@ -75,11 +75,6 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Deteksi OCR Manhwa modern",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
             text = "Ekstrak bubble speech, SFX, dan teks luar dengan sekali sentuh.",
             style = MaterialTheme.typography.bodyLarge
         )

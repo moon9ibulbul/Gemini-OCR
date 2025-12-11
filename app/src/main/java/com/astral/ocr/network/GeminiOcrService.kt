@@ -6,6 +6,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import com.astral.ocr.data.OcrSegmentResult
+import com.astral.ocr.data.DEFAULT_SEGMENT_HEIGHT
+import com.astral.ocr.data.DEFAULT_SEGMENT_OVERLAP
+import com.astral.ocr.data.MIN_SEGMENT_HEIGHT
 import com.astral.ocr.data.sliceVerticalWithOverlap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -34,6 +37,8 @@ class GeminiOcrService(
         uri: Uri,
         apiKey: String,
         model: String,
+        sliceEnabled: Boolean = true,
+        targetSliceHeight: Int = DEFAULT_SEGMENT_HEIGHT,
         pageIndex: Int = 0,
         totalPages: Int = 1,
         onProgress: (String) -> Unit = {},
@@ -50,9 +55,10 @@ class GeminiOcrService(
         val bitmap = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
             ?: return@withContext Result.failure(IOException("Gagal memuat bitmap."))
 
-        val segments = if (bitmap.height > LONG_PAGE_HEIGHT_THRESHOLD) {
+        val safeSliceHeight = targetSliceHeight.coerceAtLeast(MIN_SEGMENT_HEIGHT)
+        val segments = if (sliceEnabled && bitmap.height > LONG_PAGE_HEIGHT_THRESHOLD) {
             // Memotong halaman panjang menjadi beberapa segmen vertikal dengan overlap agar bubble tidak terpotong di batas.
-            sliceVerticalWithOverlap(bitmap, targetHeight = TARGET_SLICE_HEIGHT, overlap = SLICE_OVERLAP)
+            sliceVerticalWithOverlap(bitmap, targetHeight = safeSliceHeight, overlap = SLICE_OVERLAP)
         } else {
             listOf(bitmap)
         }
@@ -124,9 +130,38 @@ class GeminiOcrService(
         """.trimIndent()
 
     private fun normalizeOutput(raw: String): String {
-        val lines = raw.split('\n')
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return ""
+
+        val normalizedLower = trimmed.lowercase()
+        val emptyMarkers = listOf(
+            "tidak ada teks yang terdeteksi",
+            "tampaknya tidak ada teks yang dapat dibaca",
+            "tidak ada teks yang dapat dibaca",
+            "no text detected",
+            "no readable text"
+        )
+        if (emptyMarkers.any { normalizedLower.contains(it) }) return ""
+
+        val fillerPrefixes = listOf(
+            "oke",
+            "ok,",
+            "okey",
+            "baik",
+            "berikut hasil",
+            "ini dia hasil",
+            "oke, ini dia hasil",
+            "baik, berikut",
+            "berikut adalah hasil"
+        )
+
+        val lines = trimmed.split('\n')
             .map { it.trim() }
             .filter { it.isNotEmpty() }
+            .filterNot { line ->
+                val lower = line.lowercase()
+                fillerPrefixes.any { prefix -> lower.startsWith(prefix) }
+            }
 
         data class Block(val order: Int?, val prefix: String?, val builder: StringBuilder, val originalIndex: Int)
 
@@ -307,10 +342,8 @@ class GeminiOcrService(
     companion object {
         // Halaman dengan tinggi melebihi ambang ini dianggap komik panjang dan akan di-slice.
         const val LONG_PAGE_HEIGHT_THRESHOLD = 3400
-        // Tinggi target per segmen agar request tidak terlalu berat dan terhindar dari timeout.
-        const val TARGET_SLICE_HEIGHT = 1400
         // Overlap untuk menjaga bubble yang melintasi batas potongan tetap terbaca.
-        const val SLICE_OVERLAP = 80
+        const val SLICE_OVERLAP = DEFAULT_SEGMENT_OVERLAP
         private const val MAX_RETRIES = 3
         private const val INITIAL_BACKOFF_MS = 2000L
         private const val BACKOFF_MULTIPLIER = 2
