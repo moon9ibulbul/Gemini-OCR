@@ -2,14 +2,18 @@ package com.astral.ocr.data
 
 import android.graphics.Bitmap
 
+const val DEFAULT_SEGMENT_HEIGHT = 1400
+const val DEFAULT_SEGMENT_OVERLAP = 80
+const val MIN_SEGMENT_HEIGHT = 400
+
 /**
  * Memotong bitmap secara vertikal menjadi beberapa segmen dengan overlap agar teks di batas potongan tidak hilang.
  * Overlap menjaga bubble yang melintasi batas tetap terbaca di segmen berikutnya.
  */
 fun sliceVerticalWithOverlap(
     bitmap: Bitmap,
-    targetHeight: Int = 1400,
-    overlap: Int = 80,
+    targetHeight: Int = DEFAULT_SEGMENT_HEIGHT,
+    overlap: Int = DEFAULT_SEGMENT_OVERLAP,
 ): List<Bitmap> {
     if (bitmap.height <= targetHeight) return listOf(bitmap)
 

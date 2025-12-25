@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.astral.ocr.data.DEFAULT_SEGMENT_HEIGHT
+import com.astral.ocr.data.MIN_SEGMENT_HEIGHT
 import com.astral.ocr.data.OcrResult
 import com.astral.ocr.data.SettingsRepository
 import com.astral.ocr.network.GeminiOcrService
@@ -29,12 +31,14 @@ class MainViewModel(
 
     data class UiState(
         val apiKey: String = "",
-        val model: String = "gemini-1.5-flash-latest",
+        val model: String = DEFAULT_MODEL,
         val isProcessing: Boolean = false,
         val results: List<OcrResult> = emptyList(),
         val bulkMode: Boolean = false,
         val lastSavedPath: String? = null,
-        val progressMessage: String? = null
+        val progressMessage: String? = null,
+        val sliceEnabled: Boolean = true,
+        val sliceHeight: Int = DEFAULT_SEGMENT_HEIGHT
     )
 
     private val mutableResults = MutableStateFlow<List<OcrResult>>(emptyList())
@@ -51,6 +55,8 @@ class MainViewModel(
     val uiState: StateFlow<UiState> = combine(
         settingsRepository.apiKey,
         settingsRepository.model,
+        settingsRepository.sliceEnabled,
+        settingsRepository.sliceHeight,
         mutableProcessing,
         mutableResults,
         mutableBulkMode,
@@ -59,20 +65,24 @@ class MainViewModel(
     ) { values ->
         val apiKey = values[0] as String
         val model = values[1] as String
-        val processing = values[2] as Boolean
-        val results = values[3] as List<OcrResult>
-        val bulk = values[4] as Boolean
-        val saved = values[5] as String?
-        val progress = values[6] as String?
+        val sliceEnabled = values[2] as Boolean
+        val sliceHeight = values[3] as Int
+        val processing = values[4] as Boolean
+        val results = values[5] as List<OcrResult>
+        val bulk = values[6] as Boolean
+        val saved = values[7] as String?
+        val progress = values[8] as String?
 
         UiState(
             apiKey = apiKey,
-            model = if (model.isBlank()) "gemini-1.5-flash-latest" else model,
+            model = if (model.isBlank()) DEFAULT_MODEL else model,
             isProcessing = processing,
             results = results,
             bulkMode = bulk,
             lastSavedPath = saved,
-            progressMessage = progress
+            progressMessage = progress,
+            sliceEnabled = sliceEnabled,
+            sliceHeight = sliceHeight.coerceAtLeast(MIN_SEGMENT_HEIGHT)
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
@@ -93,6 +103,19 @@ class MainViewModel(
     fun updateModel(value: String) {
         viewModelScope.launch {
             settingsRepository.updateModel(value)
+        }
+    }
+
+    fun updateSliceEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateSliceEnabled(enabled)
+        }
+    }
+
+    fun updateSliceHeight(value: Int) {
+        viewModelScope.launch {
+            val safeValue = value.coerceAtLeast(MIN_SEGMENT_HEIGHT)
+            settingsRepository.updateSliceHeight(safeValue)
         }
     }
 
@@ -126,6 +149,10 @@ class MainViewModel(
         mutableLastSavedPath.value = path
     }
 
+    companion object {
+        const val DEFAULT_MODEL = "gemini-2.0-flash"
+    }
+
     private fun notifyError(ex: Throwable) {
         val message = ex.message ?: "Terjadi kesalahan tidak diketahui"
         viewModelScope.launch {
@@ -148,6 +175,8 @@ class MainViewModel(
                     uri,
                     uiState.value.apiKey,
                     uiState.value.model,
+                    sliceEnabled = uiState.value.sliceEnabled,
+                    targetSliceHeight = uiState.value.sliceHeight,
                     pageIndex = index,
                     totalPages = total,
                     onProgress = { message -> mutableProgress.value = message }
